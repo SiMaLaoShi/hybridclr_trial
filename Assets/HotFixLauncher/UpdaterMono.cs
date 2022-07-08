@@ -129,6 +129,7 @@ public class UpdaterMono : MonoBehaviour
         }
         else
         {
+            GenUpdaterInfo(webRequest.downloadHandler.text);
             yield return new WaitForEndOfFrame();
             if (downloadInfos.Count > 0)
                 StartCoroutine(Download());
