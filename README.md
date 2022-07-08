@@ -1,63 +1,49 @@
-# huatuo 体验项目
+## huatuo的简单实践项目
 
-一个示例热更新项目。
+### huatuo新手教程
 
-想了解更多，请加 QQ群: 
+官方文档链接[hybridclr_trial](https://github.com/focus-creative-games/HybridCLR_trial)
 
-- huatuo c#热更新 开发交流群：651188171
-- huatuo使用疑难咨询：651188171
+### 热更流程
 
-你可以使用发布的包来体验huatuo热更新功能。
+整体的热更流程和普通的热更基本上差不多，没有需要太多介绍。
 
-**示例项目使用 Unity 2020.3.33(任意后缀子版本如f1、f1c1、f1c2都可以) 版本**，需要精确匹配。
+![huatuo](huatuo.png)
 
-## 目录介绍
+### 运行介绍
 
-- Assets Unity项目目录
-  - Main AOT主包模块
-  - Hotfix 热更新模块
-- HuatuoData 包含HybridCLR的il2cpp本地安装目录
+- 我这里的代码写的十分简陋，主要还是体验一下华佗的特性，没有做过多的设计，直接看流程就行了。
 
-## 使用介绍
+1. 直接build就行了，只需要打包LauncherScene就行了，之后全靠ab来执行，简单的的代码分析，如下
 
-huatuo为c++实现，只有打包后才可使用。日常开发在编辑器下，无需打包。
+   ```c#
+   public class LauncherMain : MonoBehaviour
+   {
+       private static AssetBundle UpdateScreenBundle { get; set; }
+       private void Start()
+       {
+           LoadUpdateScene();
+           Debug.Log("LauncherMain Start");
+       }
+   
+       private void LoadUpdateScene()
+       {
+           var p = Path.Combine(Application.persistentDataPath, "launcher");
+           if (!File.Exists(p))
+               p = Path.Combine(Application.streamingAssetsPath, "launcher");
+           UpdateScreenBundle = AssetBundle.LoadFromFile(p, 0, 0);
+           #if !UNITY_EDITOR
+               TextAsset dllBytes1 = UpdateScreenBundle.LoadAsset<TextAsset>("HotFixLauncher.dll.bytes");
+           	System.Reflection.Assembly.Load(dllBytes1.bytes);
+           #endif
+               var updateGo = UpdateScreenBundle.LoadAsset<GameObject>("UpdaterPrefab");
+           Instantiate(updateGo);
+       }
+   }
+   ```
 
-如何打包出一个可热更新的包，请先参阅 [快速开始](https://focus-creative-games.github.io/hybridclr/start_up/)。
+   直接在Start时候就加载我们的launcher，ab，然后加载dll的byte，实例化我们的更新需要用的UpdaterPrefab，这一步做的就是假如我们热更的逻辑也要修改，就可以直接更新，不可更新的部分就只有一个LauncherMain了（其实也可以更新，使用UnityCmd，把LauncherMain解析作为字符串使用，但是需要也要插件，这样全部就可以更新了）。
 
-### 运行流程
+2. 如果上面不异常就会进入到我们的UpdaterMono.cs,这一步就是简单的热更新了，直接CS判断是否有差异，有就更新，没有就跳过，我这里写的十分简单，主要还是体验一下，没有做过多的设计，如果更新到我们的launcher的AssetBundle就说明我们的Updater也需要更新了，就需要重启，没有就是直接进去游戏了。
 
-本示例演示了如下几部分内容
-
-- 将dll和资源打包成ab
-- 多热更新dll，并且按依赖顺序加载它们
-- 热更新脚本挂载到热更新资源中，并且正常运行
-- 直接反射运行普通热更新函数App::Main
-
-进入场景后，Main场景中的LoadDll会按顺序加载StreamingAssets目录下common AssetBundle里的HotFix.dll和HotFix2.dll，其中HotFix2.dll依赖HotFix.dll。
-接着运行HotFix2.dll里的App::Main函数。
-
-注意！多热更新dll不是必须的！大多数项目完全可以只有HotFix.dll这一个热更新模块。纯粹出于演示才故意设计了两个热更新模块。
-
-### 体验热更新
-
-以Win64为例，其他平台同理。
-
-- 安装huatuo （安装huatuo的原理请看 [快速上手](https://focus-creative-games.github.io/hybridclr/start_up/)）
-  - 进入HuatuoData目录
-  - 酌情修改 init_local_il2cpp_data.bat(或.sh)文件中代码
-    - `set IL2CPP_BRANCH=2020.3.33` 改成你的版本（目前只有2020.3.33或2021.3.1）
-    - `set IL2CPP_PATH=<你的Unity editor的il2cpp目录的路径>` 改成你的Unity安装目录
-  - 运行 init_local_il2cpp_data.bat 或.sh 文件 创建本地il2cpp目录，即 LocalIl2CppData 目录。
-  - 至此完成包含HybridCLR的本地il2cpp安装
-- 打包主工程
-  
-  - 由于ab包依赖裁剪后的dll，因此首先需要build工程
-  - build ab包，点击菜单`Huatuo/BuildBundles/Win64`，生成Win64目标的AssetBundle，生成的AssetBundle文件会自动复制到StreamingAssets目录下
-  - 运行，会看到打出 hello, huatuo.prefab
-- 更新ab包
-  - 修改HotFix项目的PrintHello代码，比如改成打印 "hello,world"。
-  - 运行菜单 Huatuo/BuildBundles/Win64，重新生成ab
-  - 将StreamingAssets下的ab包同步到打包主工程时Build目标的StreamingAsset目录，在{BuildDir}\build\bin\huatuo_Data\StreamingAssets
-- 再将运行，屏幕上会打印"hello,world"。
-
-剩下的体验之旅，比如各种c#特性，自己体验吧。
+3. 更新完成就直接进入我们的Logic场景了，后面就没什么太多描述了。
