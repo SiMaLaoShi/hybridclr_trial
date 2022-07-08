@@ -60,6 +60,7 @@ namespace Huatuo
         public static List<string> s_monoHotUpdateDllNames = new List<string>()
         {
             "HotFix.dll",
+            "HotFixLauncher.dll"
         };
 
         /// <summary>

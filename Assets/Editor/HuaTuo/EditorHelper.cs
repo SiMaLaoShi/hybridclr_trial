@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using UnityEditor;
 using UnityEditor.Build.Player;
 using UnityEngine;
@@ -146,6 +148,19 @@ namespace Huatuo
                 File.Copy(dllPath, dllBytesPath, true);
                 notSceneAssets.Add(dllBytesPath);
             }
+            
+            var launcherDlls = new List<string>()
+            {
+                "HotFixLauncher.dll",
+            };
+            List<string> launcherAssets = new List<string>();
+            foreach(var dll in launcherDlls)
+            {
+                string dllPath = $"{GetDllBuildOutputDirByTarget(target)}/{dll}";
+                string dllBytesPath = $"{tempDir}/{dll}.bytes";
+                File.Copy(dllPath, dllBytesPath, true);
+                launcherAssets.Add(dllBytesPath);
+            }
 
             var aotDlls = new string[]
             {
@@ -172,8 +187,6 @@ namespace Huatuo
             notSceneAssets.Add(testPrefab);
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
-
-
             List<AssetBundleBuild> abs = new List<AssetBundleBuild>();
             AssetBundleBuild notSceneAb = new AssetBundleBuild
             {
@@ -182,11 +195,22 @@ namespace Huatuo
             };
             abs.Add(notSceneAb);
 
+            //启动需要的资源单独打一个包
+            launcherAssets.Add($"{Application.dataPath}/Prefabs/UpdaterPrefab.prefab");
+            AssetBundleBuild launcherAb = new AssetBundleBuild
+            {
+                assetBundleName = "launcher",
+                assetNames = launcherAssets.Select(s => ToReleateAssetPath(s)).ToArray(),
+            };
 
+            abs.Add(launcherAb);
+            
             string testScene = $"{Application.dataPath}/Scenes/HotUpdateScene.unity";
+            
             string[] sceneAssets =
             {
                 testScene,
+                $"{Application.dataPath}/Scenes/LogicScene.unity",
             };
             AssetBundleBuild sceneAb = new AssetBundleBuild
             {
@@ -201,6 +225,7 @@ namespace Huatuo
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
             string streamingAssetPathDst = $"{Application.streamingAssetsPath}";
+            GenVersion(outputDir);
             CreateDirIfNotExists(streamingAssetPathDst);
 
             foreach (var ab in abs)
@@ -208,6 +233,76 @@ namespace Huatuo
                 AssetDatabase.CopyAsset(ToReleateAssetPath($"{outputDir}/{ab.assetBundleName}"),
                     ToReleateAssetPath($"{streamingAssetPathDst}/{ab.assetBundleName}"));
             }
+        }
+        
+        /// <summary>
+        ///     获取一个文件的md5值
+        /// </summary>
+        /// <param name="fileName">文件路径</param>
+        /// <returns>md5值</returns>
+        public static string Md5(string fileName)
+        {
+            try
+            {
+                var file = new FileStream(fileName, FileMode.Open);
+                MD5 md5 = new MD5CryptoServiceProvider();
+                var retVal = md5.ComputeHash(file);
+                file.Close();
+
+                var sb = new StringBuilder();
+                for (var i = 0; i < retVal.Length; i++) sb.Append(retVal[i].ToString("x2"));
+
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("GetMD5HashFromFile() fail,error:" + ex.Message);
+            }
+        }
+
+        /// <summary>
+        ///     非递归获取某个文件夹下所有文件
+        /// </summary>
+        /// <param name="files">存放文件路径的列表</param>
+        /// <param name="dir">文件夹路径</param>
+        /// <param name="pattern">文件类型</param>
+        public static void NotRecursiveGetAllFile(ref List<string> files, string dir, string pattern = null)
+        {
+            var dirs = Directory.GetDirectories(dir, "*.*", SearchOption.AllDirectories);
+            foreach (var path in dirs)
+                files.AddRange(Directory.GetFiles(path, pattern ?? "*.*", SearchOption.AllDirectories));
+        }
+        
+        /// <summary>
+        ///     递归获取某个文件夹下所有文件
+        /// </summary>
+        /// <param name="files">存放文件路径的列表</param>
+        /// <param name="dir">文件夹路径</param>
+        /// <param name="pattern">文件类型</param>
+        public static void RecursiveGetAllFile(ref List<string> files, string dir, string pattern = null)
+        {
+            files.AddRange(pattern == null
+                ? Directory.GetFiles(dir)
+                : Directory.GetFiles(dir, pattern, SearchOption.AllDirectories));
+
+            var dirs = Directory.GetDirectories(dir);
+            foreach (var d in dirs)
+                RecursiveGetAllFile(ref files, d);
+        }
+
+        static void GenVersion(string dir)
+        {
+            var files = new List<string>();
+            RecursiveGetAllFile(ref files, dir);
+            var sw = File.CreateText(Path.Combine(dir, "version.txt"));
+            foreach (var file in files)
+            {
+                if (file.EndsWith(".meta") || file.EndsWith("version.txt") || file.EndsWith(".manifest"))
+                    continue;
+                var f = new FileInfo(file);
+                sw.WriteLine($"{Path.GetFileName(file)}|{Md5(file)}|{f.Length}");
+            }
+            sw.Close();
         }
 
         [MenuItem("Huatuo/BuildBundles/ActiveBuildTarget")]
@@ -244,6 +339,13 @@ namespace Huatuo
             var target = BuildTarget.Android;
             BuildAssetBundles(GetAssetBundleTempDirByTarget(target), GetAssetBundleOutputDirByTarget(target), target);
         }
+
+        [MenuItem("Huatuo/BuildBundles/Build Version")]
+        public static void BuildVersionAndroid()
+        {
+            GenVersion(GetAssetBundleOutputDirByTarget(BuildTarget.Android));
+        }
+        
 
         [MenuItem("Huatuo/BuildBundles/IOS")]
         public static void BuildSeneAssetBundleIOS()
