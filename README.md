@@ -8,7 +8,7 @@
 
 整体的热更流程和普通的热更基本上差不多，没有需要太多介绍。
 
-![huatuo](huatuo.png)
+![huatuo](pic\huatuo.png)
 
 ### 运行介绍
 
