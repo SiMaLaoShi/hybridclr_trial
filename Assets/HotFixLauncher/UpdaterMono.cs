@@ -15,7 +15,7 @@ public class UpdaterMono : MonoBehaviour
     public Slider SliderUpdater;
     public Text TxtUpdater;
 
-    public string HostName = "http://172.16.50.30/";
+    public string HostName = "http://127.0.0.1/Android/";
     private string appVersion = "version.txt";
 
     public GameObject MessageBox;

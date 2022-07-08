@@ -320,7 +320,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   SliderUpdater: {fileID: 706203492856023301}
   TxtUpdater: {fileID: 8410188348511103475}
-  HostName: http://172.16.50.30/Android/
+  HostName: http://127.0.0.1/Android/
   MessageBox: {fileID: 2016221497821354285}
   BtnQuit: {fileID: 1273367980211924571}
   BtnRetry: {fileID: 5000434608631453318}
